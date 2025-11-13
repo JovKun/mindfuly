@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 from src.mindfuly.routes import authorization, users, mood, spotify, weather
 
-from index.main import ui
+from home.main import ui
 
 app = FastAPI(
     title="Mindfuly",
     version="1.0.0",
     decription="Handles mood logs, Spotify sesssions, weather context, and user authentication",
 )
+
 
 app.include_router(authorization.router)
 app.include_router(users.router)

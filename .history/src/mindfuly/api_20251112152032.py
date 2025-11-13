@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from src.mindfuly.routes import authorization, users, mood, spotify, weather
 
-from index.main import ui
+from home.main import ui
 
 app = FastAPI(
     title="Mindfuly",
@@ -9,10 +9,11 @@ app = FastAPI(
     decription="Handles mood logs, Spotify sesssions, weather context, and user authentication",
 )
 
+
 app.include_router(authorization.router)
 app.include_router(users.router)
 app.include_router(mood.router)
 app.include_router(spotify.router)
 app.include_router(weather.router)
 
-ui.run_with(app, mount_path="/", favicon="💭", title="Mindfuly")
+ui.run_with(app, mount_path="/home", favicon=)
