@@ -44,10 +44,13 @@ async def list_users(user_repo: UserRepositoryV2 = Depends(get_user_repository_v
     users = [UserSchema.from_db_model(m) for m in user_models]
     return {'users': users}
 
-@router.delete("/{username}")
-async def delete_user(username: str, user_repo: UserRepositoryV2 = Depends(get_user_repository_v2)):
+@router.delete("/{username}", status_code=204)
+async def delete_user(username: str, response: Response, user_repo: UserRepositoryV2 = Depends(get_user_repository_v2)):
     user = await user_repo.get_by_name(username)
-    result = await user_repo.delete(user.id)
-    if result:
+
+    if not user:
+        response.status_code = 404
         return {"detail": "User not found"}
+    
+    result = await user_repo.delete(user.id)    
     return {"detail": "User deleted successfully"}
