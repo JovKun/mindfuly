@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5678:5432"
+      - "5678:5632"
     volumes:
       - postgres_data:/var/lib/postgresql/18/data # Persists data to a named volume
   web:
@@ -25,6 +25,7 @@ services:
         restart: true
     ports:
       - "8200:8200"
+
     environment:
       DATABASE_HOST: db # The service name of your Postgres container
       DATABASE_USER: ${POSTGRES_USER}
