@@ -5,7 +5,7 @@ from pydantic import parse_obj_as
 from contextlib import contextmanager
 import logging
 import copy
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 from user_service_v2.models.user import get_user_repository_v2, UserRepositoryV2
@@ -176,7 +176,7 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
         with ui.row().classes("gap-15 items-center"):
             ui.link("Overview", f"/users/{username}/home").classes("text-white text-lg no-underline")
             ui.link("Journal", f"/users/{username}/journal").classes("text-white text-lg no-underline")
-            ui.link("My Analytics", "#").classes("text-white text-lg no-underline")
+            ui.link("My Analytics", f"/users/{username}/analytics").classes("text-white text-lg no-underline")
             ui.link("Settings", "#").classes("text-white text-lg no-underline")
             ui.button('Logout', on_click=lambda: handle_logout(), icon='logout').classes('bg-red-500 ml-4')
 
@@ -192,40 +192,114 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
         # Mood Log
         with ui.card().classes("basis-1/2 p-4 shadow-md rounded-2xl border items-center h-full"):
             ui.label("Today's Mood Log").classes("text-2xl font-bold mb-3 text-center")
-            ui.label("Adjust the slider based on your mood!").classes("text-lg text-gray-600 font-semibold mb-6 text-center")
-            
-            with ui.row().classes("justify-center gap-25 mb-3 text-2xl"):
-                ui.label("😞")
-                ui.label("🙁")
-                ui.label("😐")
-                ui.label("🙂")
-                ui.label("😄")
 
-            with ui.column().classes('items-center w-full'):
-                slider = ui.slider(min=1, max=5, value=5).classes("w-full")
-                ui.label().bind_text_from(slider, 'value').classes("text-xl font-bold mt-4 text-center")
+            with ui.card().classes("w-full items-center"):
+                ui.label("How are you feeling today?").classes("text-lg text-gray-600 font-semibold mb-6 text-center")
+                
+                with ui.row().classes("justify-center gap-25 mb-3 text-2xl"):
+                    ui.label("😞")
+                    ui.label("🙁")
+                    ui.label("😐")
+                    ui.label("🙂")
+                    ui.label("😄")
+
+                with ui.column().classes('items-center w-full'):
+                    mood_slider = ui.slider(min=1, max=5, value=5).classes("w-full")
+                    ui.label().bind_text_from(mood_slider, 'value').classes("text-xl font-bold mt-4 text-center")
+
+            with ui.card().classes("w-full items-center"):
+                ui.label("How pumped are you today?").classes("text-lg text-gray-600 font-semibold mb-6 text-center")
+                
+                with ui.row().classes("justify-center gap-25 mb-3 text-2xl"):
+                    ui.label("😴")
+                    ui.label("🥱")
+                    ui.label("😐")
+                    ui.label("😲")
+                    ui.label("🫨")
+
+                with ui.column().classes('items-center w-full'):
+                    energy_slider = ui.slider(min=1, max=5, value=5).classes("w-full")
+                    ui.label().bind_text_from(energy_slider, 'value').classes("text-xl font-bold mt-4 text-center")
 
             with ui.card().classes("w-full items-center"):
                 ui.label("Why do you feel this way today?").classes("text-xl font-bold mb-4")
                 textarea = ui.textarea(placeholder="Write your notes here...").classes("w-full mb-4").props("outlined autogrow rows=4")
 
-                # Make it so that the textarea cannot be empty before submitting
+                # Listener to get weather data from JS
+                weather_desc: Optional[str] = None
+                async def receive_weather_data(desc: str):
+                    nonlocal weather_desc
+                    weather_desc = desc
+                ui.on('weather_data', receive_weather_data)
+
+                # Method to submit notes
                 async def submit_notes():
                     if not textarea.value.strip():
                         ui.notify("Please write something before submitting.", color="red")
+                    elif weather_desc is None:
+                        ui.notify("Weather data is still loading. Please wait.", color="red")
                     else:
                         ui.notify("Note Submitted!", color="green")
 
+                        async def get_weather_summary(desc: str) -> str:
+                            '''
+                            Parses weather_data to extract a brief weather summary.
+
+                            Example: broken clouds -> cloudy
+
+                            Mapping:
+                            "clear", "sun" -> "sunny"
+                            "cloud", "overcast" -> "cloudy"
+                            "shower", "rain" -> "rainy"
+                            "storm", "thunder" -> "stormy"
+                            "snow" -> "snowy"
+                            "fog", "mist" -> "foggy"
+                            '''
+
+                            # desc is currently GenericEventArguments, need to extract string
+                            desc = str(desc).lower()
+
+                            if "clear" in desc or "sun" in desc:
+                                return "sunny"
+                            if "cloud" in desc or "overcast" in desc:
+                                return "cloudy"
+                            if "shower" in desc or "rain" in desc:
+                                return "rainy"
+                            if "storm" in desc or "thunder" in desc:
+                                return "stormy"
+                            if "snow" in desc:
+                                return "snowy"
+                            if "fog" in desc or "mist" in desc:
+                                return "foggy"
+                            return desc
+                        
                         await mood_log_repo.create_mood_log(
                             user_id=user.id,
-                            mood_value=slider.value,
-                            energy_level=slider.value,  # Assuming energy level is the same as mood for now
+                            mood_value=mood_slider.value,
+                            energy_level=energy_slider.value,
                             notes=textarea.value,
-                            weather=None  # You can replace this with actual weather data if available
+                            weather=await get_weather_summary(weather_desc)
+                        )
+
+                # Method to edit notes if already submitted today
+                async def edit_notes():
+                    if not textarea.value.strip():
+                        ui.notify("Please write something before submitting.", color="red")
+                    else:
+                        ui.notify("Note Edited!", color="green")
+
+                        await mood_log_repo.edit_latest_mood_log(
+                            user_id=user.id,
+                            mood_value=mood_slider.value,
+                            energy_level=energy_slider.value,
+                            notes=textarea.value
                         )
 
             with ui.column().classes("w-full items-center mt-6"):
-                ui.button("Submit!", on_click=submit_notes).classes("bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600")
+                if datetime.utcnow().date() == (await mood_log_repo.get_most_recent_log_date(user.id)).date():
+                    ui.button("Edit!", on_click=edit_notes).classes("bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600")
+                else:
+                    ui.button("Submit!", on_click=submit_notes).classes("bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600")
 
         # Music
         with ui.card().classes("basis-1/4 p-6 shadow rounded-2xl h-full border items-center"):
@@ -247,11 +321,17 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
                 .props("id=weather-text")
 
             with ui.column().classes("bg-yellow-50 rounded-xl border p-4"):
-                ui.label("Daily Tip").classes("font-semibold mb-1")
-                ui.label("You feel happy on a certain day... (example)").classes("text-gray-700")
+                weather_stats = await mood_log_repo.get_weather_mood_stats(user.id)
+                
+                def get_max_mood_weather(weather_stats):
+                    if not weather_stats:
+                        return "no data available yet."
+                    
+                    max_entry = max(weather_stats, key=lambda x: x["avg_mood"])
+                    return max_entry["weather"]
 
-    
-    
+                ui.label("Daily Tip").classes("font-semibold mb-1")
+                ui.label(f"You feel the most happy when it is {get_max_mood_weather(weather_stats)}").classes("text-gray-700")
     
     # Weather 
     await ui.run_javascript('''
@@ -312,6 +392,9 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
                 } else {
                     label.innerText = desc;
                 }
+                            
+                // Send weather description back to Python
+                emitEvent('weather_data', desc);
 
             }, function(err) {
                 label.innerText = 'Location denied';
@@ -343,7 +426,7 @@ async def user_journal_page(username: str, user_repo: UserRepositoryV2 = Depends
         with ui.row().classes("gap-15 items-center"):
             ui.link("Overview", f"/users/{username}/home").classes("text-white text-lg no-underline")
             ui.link("Journal", f"/users/{username}/journal").classes("text-white text-lg no-underline")
-            ui.link("My Analytics", "#").classes("text-white text-lg no-underline")
+            ui.link("My Analytics", f"/users/{username}/analytics").classes("text-white text-lg no-underline")
             ui.link("Settings", "#").classes("text-white text-lg no-underline")
             ui.button('Logout', on_click=lambda: handle_logout(), icon='logout').classes('bg-red-500 ml-4')
 
@@ -364,7 +447,133 @@ async def user_journal_page(username: str, user_repo: UserRepositoryV2 = Depends
         for log in mood_logs:
             with ui.card().classes("w-full mb-4 p-4 shadow rounded-lg border"):
                 with ui.row().classes("justify-between items-center mb-2"):
-                    ui.label(f"Mood Value: {log.mood_value}").classes("font-semibold")
-                    ui.label(f"Energy Level: {log.energy_level}").classes("font-semibold")
-                    ui.label(f"Logged on: {log.created_at.strftime('%Y-%m-%d %H:%M:%S')}").classes("text-gray-500 text-sm")
-                ui.label(f"Notes: {log.notes}").classes("mt-2")
+                    ui.label(f"Mood: {log.mood_value}").classes("font-semibold")
+                    ui.label(f"Energy: {log.energy_level}").classes("font-semibold")
+                    ui.label(f"Created on: {log.created_at.date()}").classes("text-gray-500 text-sm")
+                ui.label(log.notes).classes("mt-2")
+
+@ui.page("/users/{username}/analytics")
+async def user_analytics_page(username: str, user_repo: UserRepositoryV2 = Depends(get_user_repository_v2), mood_log_repo = Depends(get_mood_log_repository_v2)):
+    # Verify user is authenticated and accessing their own page
+    authenticated_user = await require_auth(username)
+    if not authenticated_user:
+        return
+    
+    user = await user_repo.get_by_name(username)
+    if not user: 
+        ui.label("User not found.")
+        return
+    
+    # Navbar with logout
+    with ui.header().classes('justify-between items-center px-4 py-6 hover:shadow-lg transition-all duration-200'):
+        ui.label('Mindfuly - Your Daily Wellness Tracker').classes('text-2xl font-bold')
+        with ui.row().classes("gap-15 items-center"):
+            ui.link("Overview", f"/users/{username}/home").classes("text-white text-lg no-underline")
+            ui.link("Journal", f"/users/{username}/journal").classes("text-white text-lg no-underline")
+            ui.link("My Analytics", f"/users/{username}/analytics").classes("text-white text-lg no-underline")
+            ui.link("Settings", "#").classes("text-white text-lg no-underline")
+            ui.button('Logout', on_click=lambda: handle_logout(), icon='logout').classes('bg-red-500 ml-4')
+
+    async def handle_logout():
+        await ui.run_javascript('localStorage.clear()')
+        ui.notify('Logged out successfully', color='green')
+        ui.navigate.to('/home')
+
+    with ui.column().classes('w-full items-center mt-10 mb-8'):
+        ui.label(f"{username}'s Analytics").classes('text-4xl font-bold text-center mb-1')
+
+    # Fetch running means data
+    running_means = await mood_log_repo.get_running_means(user.id, limit=20)
+    mood_logs = await mood_log_repo.get_mood_logs(user.id, limit=20)
+
+    # Create double line chart for running means
+    if not mood_logs:
+        ui.label("Not enough data to display analytics. Start logging your mood today!").classes("text-gray-600 italic")
+    else:
+        dates = [entry["date"] for entry in running_means][::-1]
+        mood_values = [entry["avg_mood"] for entry in running_means][::-1]
+        energy_values = [entry["avg_energy"] for entry in running_means][::-1]
+
+        with ui.card().classes("w-full max-w-4xl p-4 shadow rounded-lg border text-center mx-auto mt-6"):
+            with ui.row().classes("justify-center w-full"):
+                ui.label("Your Mood and Energy").classes("text-xl font-bold mb-4 text-center")
+            
+            # Graph all moods and energy levels as a scatter plot
+            ui.echart({
+                "tooltip": {
+                    "trigger": "axis"
+                },
+                "legend": {
+                    "data": ["Mood Logs", "Energy Logs"]
+                },
+                "xAxis": {
+                    "type": "category",
+                    "data": [log.created_at.date().isoformat() for log in mood_logs][::-1]
+                },
+                "yAxis": {
+                    "type": "value",
+                    "min": 1,
+                    "max": 5
+                },
+                "series": [
+                    {
+                        "name": "Mood Logs",
+                        "type": "scatter",
+                        "data": [log.mood_value for log in mood_logs][::-1],
+                        "itemStyle": {
+                            "color": "#42A5F5"
+                        }
+                    },
+                    {
+                        "name": "Energy Logs",
+                        "type": "scatter",
+                        "data": [log.energy_level for log in mood_logs][::-1],
+                        "itemStyle": {
+                            "color": "#66BB6A"
+                        }
+                    }
+                ]
+            })
+
+        with ui.card().classes("w-full max-w-4xl p-4 shadow rounded-lg border text-center mx-auto"):
+            with ui.row().classes("justify-center w-full"):
+                ui.label("Average Mood and Energy Levels Over Time").classes("text-xl font-bold mb-4 text-center")
+
+            # Create a double line chart using NiceGUI's echart
+            ui.echart({
+                "tooltip": {
+                    "trigger": "axis"
+                },
+                "legend": {
+                    "data": ["Running Mean Mood", "Running Mean Energy"]
+                },
+                "xAxis": {
+                    "type": "category",
+                    "data": dates
+                },
+                "yAxis": {
+                    "type": "value",
+                    "min": 1,
+                    "max": 5
+                },
+                "series": [
+                    {
+                        "name": "Average Mood",
+                        "type": "line",
+                        "data": mood_values,
+                        "smooth": True,
+                        "lineStyle": {
+                            "color": "#42A5F5"
+                        }
+                    },
+                    {
+                        "name": "Average Energy",
+                        "type": "line",
+                        "data": energy_values,
+                        "smooth": True,
+                        "lineStyle": {
+                            "color": "#66BB6A"
+                        }
+                    }
+                ]
+            })
