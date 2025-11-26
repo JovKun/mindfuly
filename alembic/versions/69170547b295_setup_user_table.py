@@ -22,16 +22,16 @@ def upgrade() -> None:
     """Upgrade schema."""
     op.create_table(
         'users',
-        sa.Column('name', sa.String()),
-        sa.PrimaryKeyConstraint('name'),
-        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column('name', sa.String(), nullable=False, unique=True),
         sa.Column('email', sa.String(), nullable=False),
         sa.Column('hashed_password', sa.String(), nullable=False),
-        sa.Column('tier', sa.Integer(), nullable=False, server_default='1')
+        sa.Column('tier', sa.Integer(), nullable=False, server_default='1'),
+        sa.PrimaryKeyConstraint('id')
     )
     pass
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    pass
+    op.drop_table('users')
