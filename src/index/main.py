@@ -415,7 +415,7 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
             with ui.card().classes("w-full items-center"):
                 ui.label("How are you feeling today?").classes("text-lg text-gray-600 font-semibold mb-6 text-center")
                 
-                with ui.row().classes("justify-center gap-25 mb-3 text-2xl"):
+                with ui.row().classes("justify-center gap-20 mb-3 text-2xl"):
                     ui.label("😞")
                     ui.label("🙁")
                     ui.label("😐")
@@ -429,7 +429,7 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
             with ui.card().classes("w-full items-center"):
                 ui.label("How pumped are you today?").classes("text-lg text-gray-600 font-semibold mb-6 text-center")
                 
-                with ui.row().classes("justify-center gap-25 mb-3 text-2xl"):
+                with ui.row().classes("justify-center gap-20 mb-3 text-2xl"):
                     ui.label("😴")
                     ui.label("🥱")
                     ui.label("😐")
@@ -442,7 +442,7 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
 
             with ui.card().classes("w-full items-center"):
                 ui.label("Why do you feel this way today?").classes("text-xl font-bold mb-4")
-                notes_textarea = ui.textarea(placeholder="Write your notes here...").classes("w-full mb-4").props("outlined autogrow rows=4")
+                notes_textarea = ui.textarea(placeholder="Write your notes here...").classes("w-full mb-4 text-center").props("outlined autogrow rows=4")
 
                 async def submit_mood_log():
                     # Get weather data from the weather label
@@ -479,7 +479,7 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
                 ui.button("Submit!", on_click=submit_mood_log).classes("bg-blue-500 text-white px-6 py-3 rounded-lg shadow hover:bg-blue-600")
 
         # Music - YouTube Integration (Mood-Based)
-        with ui.card().classes("dashboard-card basis-1/4 p-6 shadow-lg rounded-2xl h-full border-0 bg-white"):
+        with ui.card().classes("dashboard-card basis-1/4 p-6 shadow-lg rounded-2xl h-full border-0 bg-white items-center text-center"):
             ui.label("Mood Music Player").classes("text-2xl font-bold mb-4 text-center text-gray-800")
             
             # Mood Selection
@@ -503,10 +503,10 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
             ui.label("Timer: Off").props("id=timer-display").classes("text-xs text-center text-gray-500 mb-3")
             
             # YouTube player container
-            ui.html("<div id='youtube-player-container' style='display: none;'></div>", sanitize=False)
+            ui.html("<div id='youtube-player-container' style='display: none;'></div>", sanitize=False).classes("w-full mb-3 items-center")
             
             # Currently playing info
-            with ui.column().props("id=current-video-info").classes("w-full mb-3").style("display: none;"):
+            with ui.column().props("id=current-video-info").classes("w-full mb-3 items-center").style("display: none;"):
                 ui.label("Now Playing").classes("text-sm font-semibold text-gray-600 mb-2 text-center")
                 ui.label("").props("id=current-video-title").classes("text-sm font-semibold text-center")
                 ui.label("").props("id=current-video-channel").classes("text-xs text-gray-600 text-center")
@@ -532,7 +532,7 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
                 .classes("text-gray-600") \
                 .props("id=weather-text")
 
-            with ui.column().classes("bg-yellow-50 rounded-xl border p-4"):
+            with ui.column().classes("bg-yellow-50 rounded-xl border p-4 items-center w-full text-center"):
                 weather_stats = await mood_log_repo.get_weather_mood_stats(user.id)
                 weekly_stats = await mood_log_repo.get_weekly_mood_stats(user.id)
 
@@ -589,7 +589,6 @@ async def user_home_screen(username: str, user_repo: UserRepositoryV2 = Depends(
 
 
                 ui.label("Daily Tip").classes("font-semibold mb-1")
-
 
                 insights_mood_weather = []
                 
@@ -1115,13 +1114,13 @@ async def user_journal_page(username: str, user_repo: UserRepositoryV2 = Depends
 
     mood_logs = await mood_log_repo.get_mood_logs(user.id, limit=20)
 
-    with ui.column().classes('w-full max-w-4xl mx-auto px-4'):
+    with ui.column().classes('w-full max-w-4xl mx-auto px-4 items-center'):
         if not mood_logs:
-            with ui.card().classes('dashboard-card p-8 text-center'):
+            with ui.card().classes('dashboard-card p-8 text-center items-center'):
                 ui.label("No journal entries found. Start logging your mood today!").classes("text-gray-600 italic text-lg")
         else:
             for log in mood_logs:
-                with ui.card().classes("dashboard-card p-6 mb-4"):
+                with ui.card().classes("dashboard-card p-6 mb-4 items-center text-center"):
                     with ui.row().classes("justify-between items-center mb-2"):
                         ui.label(f"Mood: {log.mood_value}").classes("font-semibold text-lg text-purple-600")
                         ui.label(f"Energy: {log.energy_level}").classes("font-semibold text-lg text-blue-600")
